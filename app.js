@@ -33,6 +33,7 @@ let starting = false
 let currentQR = null;
 let qrRetries = 0;
 const MAX_QR_RETRIES = 5;
+let lastQRPNG = null; // Buffer para la imagen PNG del QR
 
 // Variables para estadísticas del dashboard
 let botStats = {
