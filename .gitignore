@@ -6,7 +6,9 @@ yarn-error.log*
 
 # Archivos de autenticación de WhatsApp (IMPORTANTE - contienen datos sensibles)
 auth/
-*.json
+# Solo ignorar archivos JSON específicos, NO todos
+auth/*.json
+session-*.json
 
 # Variables de entorno
 .env

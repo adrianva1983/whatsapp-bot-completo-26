@@ -1,0 +1,59 @@
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        AUTH_DIR: ${AUTH_DIR:-auth}
+    container_name: whatsapp-bot
+    env_file:
+      - .env
+    environment:
+      - TZ=Europe/Madrid
+      - AI_PROVIDER=${AI_PROVIDER:-gemini}
+      - AUTH_DIR=${AUTH_DIR:-auth}
+      - PORT=3000
+      - DB_HOST=mysql
+      - DB_USER=${DB_USER:-root}
+      - DB_PASSWORD=${DB_PASSWORD:-secretpassword}
+      - DB_NAME=${DB_NAME:-whatsapp_bot}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./auth:/app/${AUTH_DIR:-auth}
+      - ./logs:/app/logs
+      - ./data:/app/data
+    restart: unless-stopped
+    tty: true
+    stdin_open: true
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql:8.0
+    container_name: whatsapp-mysql
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-secretpassword}
+      - MYSQL_DATABASE=${DB_NAME:-whatsapp_bot}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    restart: unless-stopped
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: whatsapp-phpmyadmin
+    environment:
+      - PMA_HOST=mysql
+      - PMA_PORT=3306
+      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-secretpassword}
+    ports:
+      - "8081:80"
+    depends_on:
+      - mysql
+    restart: unless-stopped
+
+volumes:
+  mysql_data:
