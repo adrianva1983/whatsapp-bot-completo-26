@@ -79,26 +79,34 @@ const handleQR = async (qr) => {
         // Generar y cachear QR para la API directamente aquí
         try {
             lastQRPNG = await QRCode.toBuffer(qr, { margin: 1, scale: 6 });
+            logger.info('✅ Buffer QR generado correctamente');
         } catch (bufferError) {
             logger.error('❌ Error generando QR buffer:', bufferError.message);
+            logger.error('Stack trace buffer:', bufferError.stack);
         }
         
         // Generar imagen QR para archivo HTML
-        const qrImage = await QRCode.toDataURL(qr);
-        
-        // Guardar QR en archivo para acceso vía API
-        fs.writeFileSync('./public/qr.html', `
-            <html>
-                <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
-                    <img src="${qrImage}" alt="WhatsApp QR Code">
-                </body>
-            </html>
-        `);
+        try {
+            const qrImage = await QRCode.toDataURL(qr);
+            
+            // Guardar QR en archivo para acceso vía API
+            fs.writeFileSync('./public/qr.html', `
+                <html>
+                    <body style="display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0;">
+                        <img src="${qrImage}" alt="WhatsApp QR Code">
+                    </body>
+                </html>
+            `);
 
-        logger.info(`📱 QR disponible en: http://localhost:3000/qr.html`);
+            logger.info(`📱 QR disponible en: http://localhost:3000/qr.html`);
+        } catch (htmlError) {
+            logger.error('❌ Error generando QR HTML:', htmlError.message);
+            logger.error('Stack trace HTML:', htmlError.stack);
+        }
 
     } catch (error) {
-        logger.error('❌ Error generando QR:', error.message || error);
+        logger.error('❌ Error general en handleQR:', error.message || error);
+        logger.error('Stack trace general:', error.stack);
     }
 };
 
