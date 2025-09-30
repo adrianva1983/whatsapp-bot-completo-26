@@ -76,12 +76,12 @@ const handleQR = async (qr) => {
 
         logger.info('🔄 Nuevo código QR generado');
         
-        // Generar imagen QR
+        // Generar y cachear QR para la API
+        await cacheQR(qr);
+        
+        // Generar imagen QR para archivo HTML
         const qrImage = await QRCode.toDataURL(qr);
         
-        // Emitir evento para el frontend si estás usando websockets
-        // io.emit('qr', qrImage);
-
         // Guardar QR en archivo para acceso vía API
         fs.writeFileSync('./public/qr.html', `
             <html>

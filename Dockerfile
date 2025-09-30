@@ -24,7 +24,7 @@ RUN npm ci --only=production
 COPY . .
 
 # Crear directorio para auth con permisos correctos
-RUN mkdir -p auth && chown -R node:node /app
+RUN mkdir -p auth logs data && chmod 777 auth logs data
 
 # Cambiar al usuario node por seguridad
 USER node
