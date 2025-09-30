@@ -3,98 +3,913 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>WhatsApp Bot Dashboard</title>
+  <title>WhatsApp Bot Dashboard Pro</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    body { background: #0f172a; color: #e2e8f0; }
-    .card { background: #111827; border: 1px solid #1f2937; }
-    .btn-primary { background: #2563eb; border: none; }
-    .status-dot { width:10px; height:10px; border-radius:50%; display:inline-block; margin-right:6px; }
-    .dot-ok { background:#10b981; } .dot-bad { background:#ef4444; } .dot-warn{ background:#f59e0b; }
-    #qr { max-width: 320px; border:8px solid #1f2937; border-radius:12px; }
-    .muted { color:#94a3b8; }
-  </style>
-</head>
-<body>
-  <div class="container py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h1 class="h3 m-0">WhatsApp Bot <span class="muted">/ Dashboard</span></h1>
-      <div>
-        <span id="status-dot" class="status-dot dot-bad"></span>
-        <span id="status-text">Desconectado</span>
-      </div>
-    </div>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #cbd5e1;
+      --text-muted: #64748b;
+      --border-color: #475569;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --info: #3b82f6;
+      --accent: #8b5cf6;
+    }
 
-    <div class="row g-4">
-      <div class="col-lg-6">
-        <div class="card p-4 h-100">
-          <h2 class="h5 mb-3">Vincular (escanea el QR)</h2>
-          <p class="muted">Abre WhatsApp → Dispositivos vinculados → Vincular dispositivo, y escanea este QR.</p>
-          <div class="text-center">
-            <img id="qr" alt="QR" src="" class="d-none" />
-            <div id="no-qr" class="muted">No hay QR disponible (¿ya estás conectado?).</div>
-          </div>
-          <div class="mt-3 d-flex gap-2 justify-content-center">
-            <button id="refresh" class="btn btn-outline-light btn-sm">Refrescar</button>
-          </div>
-        </div>
-      </div>
-      <div class="col-lg-6">
-        <div class="card p-4 h-100">
-          <h2 class="h5 mb-3">Sesión</h2>
-          <ul class="list-group list-group-flush">
-            <li class="list-group-item bg-transparent text-light">
-              <strong>Estado:</strong> <span id="state">—</span>
-            </li>
-            <li class="list-group-item bg-transparent text-light">
-              <strong>Dispositivo:</strong> <span id="device">—</span>
-            </li>
-            <li class="list-group-item bg-transparent text-light">
-              <strong>Proveedor IA:</strong> <span id="provider">—</span>
-            </li>
-          </ul>
-          <div class="mt-3">
-            <button id="logout" class="btn btn-danger">Desvincular (logout)</button>
-          </div>
-        </div>
-      </div>
-    </div>
+    * { box-sizing: border-box; }
+    body { 
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #1e293b 100%);
+      color: var(--text-primary);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      min-height: 100vh;
+    }
 
-    <footer class="mt-5 text-center muted">Semilla Proyectos · Baileys + Dashboard</footer>
-  </div>
+    .sidebar {
+      background: var(--bg-secondary);
+      backdrop-filter: blur(10px);
+      border-right: 1px solid var(--border-color);
+      height: 100vh;
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 250px;
+      z-index: 1000;
+      transition: all 0.3s ease;
+    }
 
-  <script>
-    async function fetchStatus() {
-      const res = await fetch('/api/status')
-      const data = await res.json()
-      document.getElementById('provider').textContent = data.aiProvider || '—'
-      document.getElementById('device').textContent = data.device || '—'
-      document.getElementById('state').textContent = data.connected ? 'Conectado' : (data.qr ? 'Esperando vínculo' : 'Desconectado')
-      document.getElementById('status-text').textContent = data.connected ? 'Conectado' : (data.qr ? 'Esperando vínculo' : 'Desconectado')
-      document.getElementById('status-dot').className = 'status-dot ' + (data.connected ? 'dot-ok' : data.qr ? 'dot-warn' : 'dot-bad')
-      const qrImg = document.getElementById('qr')
-      const noQr = document.getElementById('no-qr')
-      if (data.qr) {
-        qrImg.src = '/api/qr?ts=' + Date.now()
-        qrImg.classList.remove('d-none')
-        noQr.classList.add('d-none')
-      } else {
-        qrImg.classList.add('d-none')
-        noQr.classList.remove('d-none')
+    .sidebar-brand {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .sidebar-brand i {
+      font-size: 1.5rem;
+      color: var(--accent);
+    }
+
+    .sidebar-nav {
+      padding: 1rem 0;
+    }
+
+    .nav-item {
+      margin: 0.25rem 1rem;
+    }
+
+    .nav-link {
+      color: var(--text-secondary);
+      padding: 0.75rem 1rem;
+      border-radius: 0.5rem;
+      transition: all 0.2s ease;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .nav-link:hover, .nav-link.active {
+      background: var(--bg-card);
+      color: var(--text-primary);
+      transform: translateX(4px);
+    }
+
+    .main-content {
+      margin-left: 250px;
+      padding: 2rem;
+      min-height: 100vh;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 1rem;
+      backdrop-filter: blur(10px);
+      transition: all 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+
+    .card-header {
+      background: transparent;
+      border-bottom: 1px solid var(--border-color);
+      padding: 1.5rem;
+    }
+
+    .stat-card {
+      text-align: center;
+      padding: 2rem 1.5rem;
+    }
+
+    .stat-icon {
+      width: 3.5rem;
+      height: 3.5rem;
+      border-radius: 1rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .stat-number {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .status-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 2rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+    }
+
+    .status-online {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.2);
+    }
+
+    .status-offline {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .status-connecting {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+      border: 1px solid rgba(245, 158, 11, 0.2);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, #6366f1 100%);
+      border: none;
+      border-radius: 0.75rem;
+      padding: 0.75rem 1.5rem;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .btn-primary:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 10px 15px -3px rgba(139, 92, 246, 0.3);
+    }
+
+    .qr-container {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 1rem;
+      display: inline-block;
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+    }
+
+    #qr {
+      border-radius: 0.5rem;
+      max-width: 100%;
+      height: auto;
+    }
+
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 300px;
+    }
+
+    .recent-activity {
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .activity-item {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .activity-item:last-child {
+      border-bottom: none;
+    }
+
+    .activity-icon {
+      width: 2.5rem;
+      height: 2.5rem;
+      border-radius: 0.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
+    }
+
+    .activity-content {
+      flex: 1;
+    }
+
+    .activity-time {
+      color: var(--text-muted);
+      font-size: 0.75rem;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        transform: translateX(-100%);
+      }
+      
+      .sidebar.show {
+        transform: translateX(0);
+      }
+      
+      .main-content {
+        margin-left: 0;
+        padding: 1rem;
       }
     }
 
-    document.getElementById('refresh').addEventListener('click', fetchStatus)
-    document.getElementById('logout').addEventListener('click', async () => {
-      if (!confirm('¿Seguro que deseas cerrar la sesión de WhatsApp?')) return
-      const res = await fetch('/api/logout', { method: 'POST' })
-      const data = await res.json().catch(() => ({}))
-      alert(data.message || 'Logout solicitado. Revisa los logs.')
-      fetchStatus()
-    })
+    .fade-in {
+      animation: fadeIn 0.5s ease-in;
+    }
 
-    fetchStatus()
-    setInterval(fetchStatus, 4000)
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+  <!-- Mobile Menu Button -->
+  <button class="btn btn-primary d-lg-none position-fixed" id="mobile-menu-btn" style="top: 1rem; left: 1rem; z-index: 1001;">
+    <i class="bi bi-list"></i>
+  </button>
+
+  <!-- Sidebar -->
+  <nav class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <i class="bi bi-whatsapp"></i>
+      <div>
+        <div style="font-weight: 600;">WhatsApp Bot</div>
+        <div style="font-size: 0.75rem; color: var(--text-muted);">Dashboard Pro</div>
+      </div>
+    </div>
+    <div class="sidebar-nav">
+      <div class="nav-item">
+        <a href="#dashboard" class="nav-link active" data-section="dashboard">
+          <i class="bi bi-speedometer2"></i>
+          Dashboard
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="#connection" class="nav-link" data-section="connection">
+          <i class="bi bi-phone"></i>
+          Conexión
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="#chats" class="nav-link" data-section="chats">
+          <i class="bi bi-chat-dots"></i>
+          Chats
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="#analytics" class="nav-link" data-section="analytics">
+          <i class="bi bi-graph-up"></i>
+          Analíticas
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="#settings" class="nav-link" data-section="settings">
+          <i class="bi bi-gear"></i>
+          Configuración
+        </a>
+      </div>
+      <div class="nav-item">
+        <a href="#logs" class="nav-link" data-section="logs">
+          <i class="bi bi-terminal"></i>
+          Logs
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <div>
+        <h1 class="h3 mb-1">Dashboard</h1>
+        <p class="text-muted mb-0">Panel de control del bot de WhatsApp</p>
+      </div>
+      <div class="d-flex align-items-center gap-3">
+        <span id="status-indicator" class="status-indicator status-offline">
+          <span class="status-dot"></span>
+          <span id="status-text">Desconectado</span>
+        </span>
+        <button class="btn btn-primary" onclick="refreshData()">
+          <i class="bi bi-arrow-clockwise"></i>
+          Refrescar
+        </button>
+      </div>
+    </div>
+
+    <!-- Dashboard Section -->
+    <div id="dashboard-section" class="section-content">
+      <!-- Metrics Cards -->
+      <div class="metrics-grid">
+        <div class="card stat-card fade-in">
+          <div class="stat-icon" style="background: rgba(16, 185, 129, 0.1); color: var(--success);">
+            <i class="bi bi-chat-text"></i>
+          </div>
+          <div class="stat-number" id="total-messages">0</div>
+          <div class="stat-label">Mensajes Totales</div>
+        </div>
+
+        <div class="card stat-card fade-in">
+          <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: var(--info);">
+            <i class="bi bi-people"></i>
+          </div>
+          <div class="stat-number" id="total-chats">0</div>
+          <div class="stat-label">Chats Activos</div>
+        </div>
+
+        <div class="card stat-card fade-in">
+          <div class="stat-icon" style="background: rgba(139, 92, 246, 0.1); color: var(--accent);">
+            <i class="bi bi-robot"></i>
+          </div>
+          <div class="stat-number" id="ai-responses">0</div>
+          <div class="stat-label">Respuestas IA</div>
+        </div>
+
+        <div class="card stat-card fade-in">
+          <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: var(--warning);">
+            <i class="bi bi-clock"></i>
+          </div>
+          <div class="stat-number" id="uptime">--:--</div>
+          <div class="stat-label">Tiempo Activo</div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="row g-4 mb-4">
+        <div class="col-lg-8">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="bi bi-graph-up me-2"></i>
+                Actividad de Mensajes
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="messagesChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-4">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="bi bi-pie-chart me-2"></i>
+                Tipos de Mensajes
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="chart-container">
+                <canvas id="messageTypesChart"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent Activity -->
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-activity me-2"></i>
+            Actividad Reciente
+          </h5>
+        </div>
+        <div class="card-body p-0">
+          <div class="recent-activity" id="recent-activity">
+            <!-- Activity items will be populated here -->
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Connection Section -->
+    <div id="connection-section" class="section-content d-none">
+      <div class="row g-4">
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="bi bi-qr-code me-2"></i>
+                Código QR
+              </h5>
+            </div>
+            <div class="card-body text-center">
+              <p class="text-muted mb-4">Escanea este código QR con WhatsApp para conectar el bot</p>
+              <div id="qr-container">
+                <div class="qr-container">
+                  <img id="qr" alt="QR Code" src="" class="d-none" />
+                </div>
+                <div id="no-qr" class="text-muted">
+                  <i class="bi bi-check-circle display-4 text-success mb-3"></i>
+                  <p>Bot conectado correctamente</p>
+                </div>
+              </div>
+              <div class="mt-4">
+                <button id="refresh-qr" class="btn btn-primary">
+                  <i class="bi bi-arrow-clockwise me-2"></i>
+                  Generar Nuevo QR
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-6">
+          <div class="card">
+            <div class="card-header">
+              <h5 class="mb-0">
+                <i class="bi bi-info-circle me-2"></i>
+                Información de Sesión
+              </h5>
+            </div>
+            <div class="card-body">
+              <div class="row g-3">
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
+                    <i class="bi bi-wifi text-info"></i>
+                    <div>
+                      <div class="small text-muted">Estado</div>
+                      <div id="connection-state">--</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
+                    <i class="bi bi-phone text-success"></i>
+                    <div>
+                      <div class="small text-muted">Dispositivo</div>
+                      <div id="device-info">--</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
+                    <i class="bi bi-cpu text-warning"></i>
+                    <div>
+                      <div class="small text-muted">Proveedor IA</div>
+                      <div id="ai-provider">--</div>
+                    </div>
+                  </div>
+                </div>
+                <div class="col-sm-6">
+                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
+                    <i class="bi bi-clock text-info"></i>
+                    <div>
+                      <div class="small text-muted">Conectado desde</div>
+                      <div id="connected-since">--</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="mt-4">
+                <button id="logout" class="btn btn-danger">
+                  <i class="bi bi-box-arrow-right me-2"></i>
+                  Desconectar Bot
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Other sections will be added here -->
+    <div id="chats-section" class="section-content d-none">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-chat-dots me-2"></i>
+            Gestión de Chats
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">Funcionalidad en desarrollo...</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="analytics-section" class="section-content d-none">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-graph-up me-2"></i>
+            Analíticas Avanzadas
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">Funcionalidad en desarrollo...</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="settings-section" class="section-content d-none">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-gear me-2"></i>
+            Configuración
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">Funcionalidad en desarrollo...</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="logs-section" class="section-content d-none">
+      <div class="card">
+        <div class="card-header">
+          <h5 class="mb-0">
+            <i class="bi bi-terminal me-2"></i>
+            Logs del Sistema
+          </h5>
+        </div>
+        <div class="card-body">
+          <p class="text-muted">Funcionalidad en desarrollo...</p>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    // Variables globales
+    let messagesChart, messageTypesChart;
+    let currentSection = 'dashboard';
+    let lastUpdateTime = Date.now();
+    
+    // Datos simulados para las estadísticas (en producción vendrían del backend)
+    const stats = {
+      totalMessages: 0,
+      totalChats: 0,
+      aiResponses: 0,
+      uptime: Date.now(),
+      messageHistory: [],
+      recentActivity: []
+    };
+
+    // Inicialización
+    document.addEventListener('DOMContentLoaded', function() {
+      initCharts();
+      setupNavigation();
+      fetchStatus();
+      setInterval(fetchStatus, 5000);
+      updateUptime();
+      setInterval(updateUptime, 1000);
+    });
+
+    // Configuración de navegación
+    function setupNavigation() {
+      document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          const section = this.getAttribute('data-section');
+          showSection(section);
+          
+          // Update active nav
+          document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+          this.classList.add('active');
+          
+          // Hide sidebar on mobile after selection
+          if (window.innerWidth <= 768) {
+            document.getElementById('sidebar').classList.remove('show');
+          }
+        });
+      });
+      
+      // Mobile menu toggle
+      document.getElementById('mobile-menu-btn')?.addEventListener('click', function() {
+        document.getElementById('sidebar').classList.toggle('show');
+      });
+      
+      // Close sidebar when clicking outside on mobile
+      document.addEventListener('click', function(e) {
+        const sidebar = document.getElementById('sidebar');
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        
+        if (window.innerWidth <= 768 && 
+            sidebar.classList.contains('show') && 
+            !sidebar.contains(e.target) && 
+            !menuBtn.contains(e.target)) {
+          sidebar.classList.remove('show');
+        }
+      });
+    }
+
+    // Mostrar sección
+    function showSection(section) {
+      document.querySelectorAll('.section-content').forEach(el => {
+        el.classList.add('d-none');
+      });
+      document.getElementById(section + '-section').classList.remove('d-none');
+      currentSection = section;
+    }
+
+    // Obtener estado del bot
+    async function fetchStatus() {
+      try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        
+        updateStatusIndicator(data);
+        updateConnectionInfo(data);
+        updateQRCode(data);
+        updateStats(data);
+        
+      } catch (error) {
+        console.error('Error fetching status:', error);
+        updateStatusIndicator({ connected: false });
+      }
+    }
+
+    // Actualizar indicador de estado
+    function updateStatusIndicator(data) {
+      const indicator = document.getElementById('status-indicator');
+      const statusText = document.getElementById('status-text');
+      
+      if (data.connected) {
+        indicator.className = 'status-indicator status-online';
+        statusText.textContent = 'Conectado';
+      } else if (data.qr) {
+        indicator.className = 'status-indicator status-connecting';
+        statusText.textContent = 'Esperando conexión';
+      } else {
+        indicator.className = 'status-indicator status-offline';
+        statusText.textContent = 'Desconectado';
+      }
+    }
+
+    // Actualizar información de conexión
+    function updateConnectionInfo(data) {
+      document.getElementById('connection-state').textContent = 
+        data.connected ? 'Conectado' : (data.qr ? 'Esperando vínculo' : 'Desconectado');
+      document.getElementById('device-info').textContent = data.device || 'No disponible';
+      document.getElementById('ai-provider').textContent = data.aiProvider || 'No configurado';
+      document.getElementById('connected-since').textContent = 
+        data.connected ? new Date().toLocaleString() : '--';
+    }
+
+    // Actualizar código QR
+    function updateQRCode(data) {
+      const qrImg = document.getElementById('qr');
+      const noQr = document.getElementById('no-qr');
+      
+      if (data.qr && !data.connected) {
+        qrImg.src = '/api/qr?ts=' + Date.now();
+        qrImg.classList.remove('d-none');
+        noQr.classList.add('d-none');
+      } else {
+        qrImg.classList.add('d-none');
+        noQr.classList.remove('d-none');
+      }
+    }
+
+    // Actualizar estadísticas
+    function updateStats(data) {
+      if (data.stats) {
+        document.getElementById('total-messages').textContent = data.stats.totalMessages;
+        document.getElementById('total-chats').textContent = data.stats.totalChats;
+        document.getElementById('ai-responses').textContent = data.stats.aiResponses;
+        
+        // Actualizar gráficos si existen datos
+        if (messagesChart && data.stats.messagesByHour) {
+          messagesChart.data.datasets[0].data = data.stats.messagesByHour;
+          messagesChart.update('none');
+        }
+        
+        if (messageTypesChart && data.stats.messageTypes) {
+          const types = data.stats.messageTypes;
+          messageTypesChart.data.datasets[0].data = [
+            types.text, types.image, types.document, types.audio
+          ];
+          messageTypesChart.update('none');
+        }
+        
+        // Actualizar actividad reciente
+        updateRecentActivityFromBackend(data.stats.recentActivity);
+        
+        // Actualizar uptime
+        if (data.stats.uptime) {
+          const hours = Math.floor(data.stats.uptime / (1000 * 60 * 60));
+          const minutes = Math.floor((data.stats.uptime % (1000 * 60 * 60)) / (1000 * 60));
+          document.getElementById('uptime').textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        }
+      }
+    }
+
+    // Actualizar actividad reciente desde el backend
+    function updateRecentActivityFromBackend(activities) {
+      const container = document.getElementById('recent-activity');
+      container.innerHTML = '';
+      
+      if (!activities || activities.length === 0) {
+        container.innerHTML = '<div class="text-center text-muted p-4">No hay actividad reciente</div>';
+        return;
+      }
+      
+      activities.forEach(activity => {
+        const item = document.createElement('div');
+        item.className = 'activity-item';
+        
+        let iconClass = 'bi-info-circle';
+        let colorClass = 'info';
+        
+        if (activity.type === 'message') {
+          iconClass = 'bi-chat-text';
+          colorClass = 'info';
+        } else if (activity.type === 'ai') {
+          iconClass = 'bi-robot';
+          colorClass = 'success';
+        } else if (activity.type === 'user') {
+          iconClass = 'bi-person-plus';
+          colorClass = 'warning';
+        }
+        
+        const timestamp = new Date(activity.timestamp);
+        
+        item.innerHTML = `
+          <div class="activity-icon" style="background: rgba(var(--${colorClass === 'info' ? '59, 130, 246' : colorClass === 'success' ? '16, 185, 129' : '245, 158, 11'}), 0.1); color: var(--${colorClass});">
+            <i class="bi ${iconClass}"></i>
+          </div>
+          <div class="activity-content">
+            <div>${activity.description}</div>
+            <div class="activity-time">${timestamp.toLocaleTimeString()}</div>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    // Actualizar tiempo activo (mantenido como backup si no viene del backend)
+    function updateUptime() {
+      // Solo actualizar si no hay datos del backend
+      if (!document.getElementById('uptime').textContent.includes(':')) {
+        const uptimeEl = document.getElementById('uptime');
+        const diff = Date.now() - stats.uptime;
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        uptimeEl.textContent = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      }
+    }
+
+    // Inicializar gráficos
+    function initCharts() {
+      // Gráfico de mensajes por tiempo
+      const ctx1 = document.getElementById('messagesChart').getContext('2d');
+      messagesChart = new Chart(ctx1, {
+        type: 'line',
+        data: {
+          labels: Array.from({length: 24}, (_, i) => `${i}:00`),
+          datasets: [{
+            label: 'Mensajes por hora',
+            data: Array.from({length: 24}, () => Math.floor(Math.random() * 50)),
+            borderColor: '#8b5cf6',
+            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              labels: { color: '#cbd5e1' }
+            }
+          },
+          scales: {
+            x: { 
+              ticks: { color: '#64748b' },
+              grid: { color: '#475569' }
+            },
+            y: { 
+              ticks: { color: '#64748b' },
+              grid: { color: '#475569' }
+            }
+          }
+        }
+      });
+
+      // Gráfico de tipos de mensajes
+      const ctx2 = document.getElementById('messageTypesChart').getContext('2d');
+      messageTypesChart = new Chart(ctx2, {
+        type: 'doughnut',
+        data: {
+          labels: ['Texto', 'Imágenes', 'Documentos', 'Audio'],
+          datasets: [{
+            data: [65, 20, 10, 5],
+            backgroundColor: ['#8b5cf6', '#10b981', '#f59e0b', '#ef4444'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { 
+                color: '#cbd5e1',
+                padding: 20
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Función para refrescar datos
+    function refreshData() {
+      fetchStatus();
+      // Agregar efecto visual
+      const btn = event.target;
+      const icon = btn.querySelector('i');
+      icon.style.animation = 'spin 1s linear';
+      setTimeout(() => {
+        icon.style.animation = '';
+      }, 1000);
+    }
+
+    // Event listeners
+    document.getElementById('refresh-qr')?.addEventListener('click', fetchStatus);
+    document.getElementById('logout')?.addEventListener('click', async () => {
+      if (!confirm('¿Estás seguro de que deseas desconectar el bot?')) return;
+      
+      try {
+        const res = await fetch('/api/logout', { method: 'POST' });
+        const data = await res.json();
+        alert(data.message || 'Logout solicitado. Revisa los logs.');
+        fetchStatus();
+      } catch (error) {
+        alert('Error al desconectar: ' + error.message);
+      }
+    });
+
+    // Añadir animación de spin para el icono de refresh
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+    `;
+    document.head.appendChild(style);
   </script>
 </body>
 </html>

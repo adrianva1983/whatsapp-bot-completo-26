@@ -34,6 +34,37 @@ let currentQR = null;
 let qrRetries = 0;
 const MAX_QR_RETRIES = 5;
 
+// Variables para estadísticas del dashboard
+let botStats = {
+  startTime: Date.now(),
+  totalMessages: 0,
+  totalChats: new Set(),
+  aiResponses: 0,
+  messagesByHour: new Array(24).fill(0),
+  messageTypes: {
+    text: 0,
+    image: 0,
+    document: 0,
+    audio: 0,
+    other: 0
+  },
+  recentActivity: []
+};
+
+// Función para agregar actividad reciente
+function addRecentActivity(type, description) {
+  const activity = {
+    type,
+    description,
+    timestamp: new Date().toISOString()
+  };
+  
+  botStats.recentActivity.unshift(activity);
+  if (botStats.recentActivity.length > 50) {
+    botStats.recentActivity = botStats.recentActivity.slice(0, 50);
+  }
+}
+
 // Función para manejar la generación del QR
 const handleQR = async (qr) => {
     try {
@@ -217,10 +248,35 @@ async function startWA() {
           
           const fromNumber = msg.key.remoteJid;
           
+          // Actualizar estadísticas
+          botStats.totalMessages++;
+          botStats.totalChats.add(fromNumber);
+          
+          // Rastrear tipo de mensaje
+          if (msg.message?.conversation || msg.message?.extendedTextMessage) {
+            botStats.messageTypes.text++;
+          } else if (msg.message?.imageMessage) {
+            botStats.messageTypes.image++;
+          } else if (msg.message?.documentMessage) {
+            botStats.messageTypes.document++;
+          } else if (msg.message?.audioMessage) {
+            botStats.messageTypes.audio++;
+          } else {
+            botStats.messageTypes.other++;
+          }
+          
+          // Rastrear mensajes por hora
+          const hour = new Date().getHours();
+          botStats.messagesByHour[hour]++;
+          
+          // Agregar actividad reciente
+          addRecentActivity('message', `Mensaje recibido de ${fromNumber.split('@')[0]}`);
+          
           logger.info({
               event: 'mensaje_recibido',
               fromNumber,
-              text
+              text,
+              totalMessages: botStats.totalMessages
           }, '📩 Nuevo mensaje recibido');
 
           // Intentar guardar en BD
@@ -245,6 +301,10 @@ async function startWA() {
                       text: h.text
                   }))
               });
+              
+              // Actualizar estadísticas de IA
+              botStats.aiResponses++;
+              addRecentActivity('ai', `Respuesta IA generada para ${fromNumber.split('@')[0]}`);
               
               await db.addMessage(fromNumber, 'assistant', aiReply);
               logger.info('💾 Respuesta bot guardada en BD');
@@ -279,11 +339,21 @@ app.use(express.json())
 app.use(express.static(path.join(__dirname, 'public')))
 
 app.get('/api/status', (req, res) => {
+  const uptime = Date.now() - botStats.startTime;
   res.json({
     connected,
-    hasQR: !!currentQR,
+    qr: !!currentQR,
     device: sock?.user?.id || null,
-    aiProvider: (process.env.AI_PROVIDER || 'gemini')
+    aiProvider: (process.env.AI_PROVIDER || 'gemini'),
+    stats: {
+      totalMessages: botStats.totalMessages,
+      totalChats: botStats.totalChats.size,
+      aiResponses: botStats.aiResponses,
+      uptime: uptime,
+      messagesByHour: botStats.messagesByHour,
+      messageTypes: botStats.messageTypes,
+      recentActivity: botStats.recentActivity.slice(0, 10)
+    }
   })
 })
 
