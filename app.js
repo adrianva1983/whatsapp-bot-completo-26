@@ -76,8 +76,12 @@ const handleQR = async (qr) => {
 
         logger.info('🔄 Nuevo código QR generado');
         
-        // Generar y cachear QR para la API
-        await cacheQR(qr);
+        // Generar y cachear QR para la API directamente aquí
+        try {
+            lastQRPNG = await QRCode.toBuffer(qr, { margin: 1, scale: 6 });
+        } catch (bufferError) {
+            logger.error('❌ Error generando QR buffer:', bufferError.message);
+        }
         
         // Generar imagen QR para archivo HTML
         const qrImage = await QRCode.toDataURL(qr);
@@ -94,7 +98,7 @@ const handleQR = async (qr) => {
         logger.info(`📱 QR disponible en: http://localhost:3000/qr.html`);
 
     } catch (error) {
-        logger.error('❌ Error generando QR:', error);
+        logger.error('❌ Error generando QR:', error.message || error);
     }
 };
 
