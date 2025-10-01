@@ -29,11 +29,28 @@ let sock = null
 let connected = false
 let starting = false
 
+// Inicializar base de datos
+let db = null;
+(async () => {
+    try {
+        db = new ChatDatabase();
+        logger.info('🗄️ Base de datos inicializada correctamente');
+    } catch (err) {
+        logger.error('❌ Error inicializando base de datos:', err.message);
+        logger.warn('⚠️ El bot continuará funcionando sin base de datos');
+    }
+})();
+
 // Variables para el QR
 let currentQR = null;
 let qrRetries = 0;
 const MAX_QR_RETRIES = 5;
 let lastQRPNG = null; // Buffer para la imagen PNG del QR
+
+// Sistema de Rate Limiting para evitar bucles infinitos
+const messageHistory = new Map(); // Para rastrear mensajes por usuario
+const RATE_LIMIT_WINDOW = 30000; // 30 segundos
+const MAX_MESSAGES_PER_WINDOW = 3; // Máximo 3 mensajes por usuario en 30 segundos
 
 // Variables para estadísticas del dashboard
 let botStats = {
@@ -64,6 +81,34 @@ function addRecentActivity(type, description) {
   if (botStats.recentActivity.length > 50) {
     botStats.recentActivity = botStats.recentActivity.slice(0, 50);
   }
+}
+
+// Función para verificar rate limiting
+function isRateLimited(fromNumber) {
+  const now = Date.now();
+  const userHistory = messageHistory.get(fromNumber) || [];
+  
+  // Limpiar mensajes antiguos (fuera de la ventana de tiempo)
+  const recentMessages = userHistory.filter(timestamp => now - timestamp < RATE_LIMIT_WINDOW);
+  
+  // Actualizar historial
+  messageHistory.set(fromNumber, recentMessages);
+  
+  // Verificar si excede el límite
+  if (recentMessages.length >= MAX_MESSAGES_PER_WINDOW) {
+    logger.warn({
+      fromNumber,
+      messageCount: recentMessages.length,
+      timeWindow: RATE_LIMIT_WINDOW / 1000
+    }, '⚠️ Rate limit excedido');
+    return true;
+  }
+  
+  // Agregar timestamp actual
+  recentMessages.push(now);
+  messageHistory.set(fromNumber, recentMessages);
+  
+  return false;
 }
 
 // Función para manejar la generación del QR
@@ -252,6 +297,24 @@ async function startWA() {
               logger.info('Mensaje ignorado: no contiene mensaje o remoteJid');
               return;
           }
+
+          // Ignorar mensajes del propio bot
+          if (msg.key.fromMe) {
+              logger.info('Mensaje ignorado: enviado por el bot');
+              return;
+          }
+
+          // Ignorar mensajes de estado (status@broadcast)
+          if (msg.key.remoteJid === 'status@broadcast') {
+              logger.info('Mensaje ignorado: estado de WhatsApp');
+              return;
+          }
+
+          // Ignorar grupos si no queremos responder en grupos
+          if (msg.key.remoteJid.includes('@g.us')) {
+              logger.info('Mensaje ignorado: mensaje de grupo');
+              return;
+          }
           
           const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '';
           if (!text) {
@@ -260,6 +323,12 @@ async function startWA() {
           }
           
           const fromNumber = msg.key.remoteJid;
+
+          // Verificar rate limiting para evitar bucles infinitos
+          if (isRateLimited(fromNumber)) {
+              logger.warn(`🚫 Rate limit aplicado para ${fromNumber}`);
+              return;
+          }
           
           // Actualizar estadísticas
           botStats.totalMessages++;
@@ -292,20 +361,51 @@ async function startWA() {
               totalMessages: botStats.totalMessages
           }, '📩 Nuevo mensaje recibido');
 
-          // Intentar guardar en BD
+          // Intentar guardar en BD y obtener historial
+          let history = [];
           try {
-              await db.testConnection();
-              logger.info('✅ Conexión a BD verificada');
+              if (db) {
+                  await db.testConnection();
+                  logger.info('✅ Conexión a BD verificada');
+                  
+                  await db.addMessage(fromNumber, 'user', text);
+                  logger.info('💾 Mensaje usuario guardado en BD');
+                  
+                  history = await db.getHistory(fromNumber);
+                  logger.info({
+                      historyLength: history.length,
+                      fromNumber
+                  }, '📚 Historial recuperado');
+              } else {
+                  logger.warn('⚠️ Base de datos no disponible, usando historial vacío');
+              }
+          } catch (dbError) {
+              logger.error({
+                  error: dbError.message,
+                  stack: dbError.stack
+              }, '❌ Error de base de datos, continuando sin historial');
+          }
+          
+          // Generar respuesta IA
+          try {
+              // Verificación adicional: no responder a mensajes muy cortos o repetitivos
+              if (text.length < 2) {
+                  logger.info('Mensaje ignorado: demasiado corto');
+                  return;
+              }
+
+              // No responder a mensajes que parezcan respuestas automáticas del bot
+              const autoResponsePatterns = [
+                  /^[🤖🔄⚡✅❌]{2,}$/,  // Solo emojis múltiples
+                  /este mensaje fue generado automáticamente/i,
+                  /bot response/i
+              ];
               
-              await db.addMessage(fromNumber, 'user', text);
-              logger.info('💾 Mensaje usuario guardado en BD');
-              
-              const history = await db.getHistory(fromNumber);
-              logger.info({
-                  historyLength: history.length,
-                  fromNumber
-              }, '📚 Historial recuperado');
-              
+              if (autoResponsePatterns.some(pattern => pattern.test(text))) {
+                  logger.info('Mensaje ignorado: parece respuesta automática');
+                  return;
+              }
+
               const aiReply = await replyWithAI({
                   text,
                   fromNumber,
@@ -319,16 +419,40 @@ async function startWA() {
               botStats.aiResponses++;
               addRecentActivity('ai', `Respuesta IA generada para ${fromNumber.split('@')[0]}`);
               
-              await db.addMessage(fromNumber, 'assistant', aiReply);
-              logger.info('💾 Respuesta bot guardada en BD');
+              // Guardar respuesta en BD si está disponible
+              if (db) {
+                  try {
+                      await db.addMessage(fromNumber, 'assistant', aiReply);
+                      logger.info('💾 Respuesta bot guardada en BD');
+                  } catch (dbError) {
+                      logger.error('❌ Error guardando respuesta en BD:', dbError.message);
+                  }
+              }
               
               await sock.sendMessage(fromNumber, { text: aiReply });
               
-          } catch (dbError) {
+          } catch (aiError) {
               logger.error({
-                  error: dbError.message,
-                  stack: dbError.stack
-              }, '❌ Error de base de datos');
+                  error: aiError.message,
+                  stack: aiError.stack
+              }, '❌ Error generando respuesta IA');
+              
+              // Manejo específico para rate limit de API
+              if (aiError.message.includes('429') || aiError.message.includes('Too Many Requests')) {
+                  logger.warn('🚫 Rate limit de API excedido, pausando respuestas por 60 segundos');
+                  await sock.sendMessage(fromNumber, { 
+                      text: '⚠️ Sistema temporalmente ocupado. Intenta de nuevo en unos minutos.' 
+                  });
+                  
+                  // Agregar delay más largo para este usuario
+                  const userHistory = messageHistory.get(fromNumber) || [];
+                  const now = Date.now();
+                  // Agregar timestamps futuros para bloquear por más tiempo
+                  for (let i = 0; i < MAX_MESSAGES_PER_WINDOW; i++) {
+                      userHistory.push(now + 60000 + (i * 1000)); // Bloquear por 60+ segundos
+                  }
+                  messageHistory.set(fromNumber, userHistory);
+              }
           }
           
       } catch (error) {

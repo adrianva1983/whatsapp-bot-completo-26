@@ -19,17 +19,35 @@ export class ChatDatabase {
     }
 
     async init() {
-        try {
-            const connection = await this.pool.getConnection();
-            logger.info('✅ Conexión a MySQL establecida');
-            
-            await connection.query(`SHOW TABLES LIKE 'chat_history'`);
-            logger.info('✅ Tabla chat_history verificada');
-            
-            connection.release();
-        } catch (err) {
-            logger.error({ error: err }, '❌ Error inicializando BD');
-            throw err;
+        const maxRetries = 10;
+        const retryDelay = 5000; // 5 segundos
+        
+        for (let i = 0; i < maxRetries; i++) {
+            try {
+                const connection = await this.pool.getConnection();
+                logger.info('✅ Conexión a MySQL establecida');
+                
+                await connection.query(`SHOW TABLES LIKE 'chat_history'`);
+                logger.info('✅ Tabla chat_history verificada');
+                
+                connection.release();
+                return; // Salir si la conexión es exitosa
+            } catch (err) {
+                logger.warn({ 
+                    attempt: i + 1, 
+                    maxRetries, 
+                    error: err.message 
+                }, `⚠️ Intento ${i + 1}/${maxRetries} de conexión a BD falló`);
+                
+                if (i === maxRetries - 1) {
+                    logger.error({ error: err }, '❌ Error inicializando BD después de todos los reintentos');
+                    throw err;
+                }
+                
+                // Esperar antes del siguiente intento
+                logger.info(`⏳ Esperando ${retryDelay/1000}s antes del siguiente intento...`);
+                await new Promise(resolve => setTimeout(resolve, retryDelay));
+            }
         }
     }
 

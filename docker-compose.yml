@@ -32,14 +32,17 @@ services:
   mysql:
     image: mysql:8.0
     container_name: whatsapp-mysql
-    command: --default-authentication-plugin=mysql_native_password
+    command: --default-authentication-plugin=mysql_native_password --skip-ssl --bind-address=0.0.0.0
     environment:
-      - MYSQL_ROOT_PASSWORD=${DB_PASSWORD:-secretpassword}
-      - MYSQL_DATABASE=${DB_NAME:-whatsapp_bot}
+      - MYSQL_ROOT_PASSWORD=secretpassword
+      - MYSQL_DATABASE=whatsapp_bot
+      - MYSQL_USER=whatsapp_user
+      - MYSQL_PASSWORD=secretpassword
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+    ports:
+      - "3306:3306"
     restart: unless-stopped
 
   phpmyadmin:

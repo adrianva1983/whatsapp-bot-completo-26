@@ -1,6 +1,11 @@
 CREATE DATABASE IF NOT EXISTS whatsapp_bot;
 USE whatsapp_bot;
 
+-- Crear usuario específico si no existe
+CREATE USER IF NOT EXISTS 'whatsapp_user'@'%' IDENTIFIED BY 'secretpassword';
+GRANT ALL PRIVILEGES ON whatsapp_bot.* TO 'whatsapp_user'@'%';
+FLUSH PRIVILEGES;
+
 DROP TABLE IF EXISTS chat_history;
 CREATE TABLE chat_history (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
