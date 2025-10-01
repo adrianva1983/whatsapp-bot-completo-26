@@ -276,6 +276,121 @@
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
     }
+
+    /* Correcciones de contraste para tema oscuro */
+    .card, .card-body, .card-header, .card-footer {
+      color: var(--text-primary) !important;
+      background-color: var(--bg-card) !important;
+    }
+
+    .card-title, .card-text, h1, h2, h3, h4, h5, h6 {
+      color: var(--text-primary) !important;
+    }
+
+    .text-muted {
+      color: var(--text-muted) !important;
+    }
+
+    .btn-primary {
+      background-color: var(--accent) !important;
+      border-color: var(--accent) !important;
+      color: white !important;
+    }
+
+    .btn-outline-primary {
+      border-color: var(--accent) !important;
+      color: var(--accent) !important;
+    }
+
+    .btn-outline-primary:hover {
+      background-color: var(--accent) !important;
+      border-color: var(--accent) !important;
+      color: white !important;
+    }
+
+    .table-dark {
+      background-color: var(--bg-card) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .table-dark th, .table-dark td {
+      border-color: var(--border-color) !important;
+      color: var(--text-primary) !important;
+    }
+
+    .list-group-item {
+      background-color: var(--bg-card) !important;
+      color: var(--text-primary) !important;
+      border-color: var(--border-color) !important;
+    }
+
+    .alert {
+      color: var(--text-primary) !important;
+    }
+
+    .alert-success {
+      background-color: rgba(16, 185, 129, 0.1) !important;
+      border-color: var(--success) !important;
+    }
+
+    .alert-warning {
+      background-color: rgba(245, 158, 11, 0.1) !important;
+      border-color: var(--warning) !important;
+    }
+
+    .alert-danger {
+      background-color: rgba(239, 68, 68, 0.1) !important;
+      border-color: var(--danger) !important;
+    }
+
+    .alert-info {
+      background-color: rgba(59, 130, 246, 0.1) !important;
+      border-color: var(--info) !important;
+    }
+
+    /* Correcciones para la tarjeta de información de sesión */
+    .session-info-item {
+      min-width: 0; /* Permite que el flex item se encoja */
+      overflow: hidden; /* Oculta el desbordamiento */
+    }
+
+    .session-info-item > div {
+      min-width: 0; /* Permite que el contenido se encoja */
+    }
+
+    .session-info-item .small {
+      white-space: nowrap; /* Evita que se rompa el texto del label */
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .session-info-value {
+      word-break: break-word; /* Permite romper palabras largas */
+      overflow-wrap: break-word; /* Envuelve texto largo */
+      hyphens: auto; /* Añade guiones automáticos */
+      max-width: 100%; /* Limita el ancho máximo */
+      line-height: 1.3; /* Mejora la legibilidad en múltiples líneas */
+    }
+
+    /* Mejoras para contenedores de información */
+    .info-container {
+      min-height: 70px; /* Altura mínima consistente */
+      display: flex;
+      align-items: center;
+      padding: 0.75rem !important;
+    }
+
+    /* Asegurar que los elementos no se desborden en pantallas pequeñas */
+    @media (max-width: 576px) {
+      .session-info-value {
+        font-size: 0.875rem; /* Texto más pequeño en móvil */
+      }
+      
+      .info-container {
+        min-height: 60px;
+        padding: 0.5rem !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -482,38 +597,38 @@
             <div class="card-body">
               <div class="row g-3">
                 <div class="col-sm-6">
-                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
-                    <i class="bi bi-wifi text-info"></i>
-                    <div>
+                  <div class="d-flex align-items-center gap-3 info-container rounded session-info-item" style="background: var(--bg-secondary);">
+                    <i class="bi bi-wifi text-info flex-shrink-0"></i>
+                    <div class="min-w-0 flex-grow-1">
                       <div class="small text-muted">Estado</div>
-                      <div id="connection-state">--</div>
+                      <div id="connection-state" class="session-info-value">--</div>
                     </div>
                   </div>
                 </div>
                 <div class="col-sm-6">
-                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
-                    <i class="bi bi-phone text-success"></i>
-                    <div>
+                  <div class="d-flex align-items-center gap-3 info-container rounded session-info-item" style="background: var(--bg-secondary);">
+                    <i class="bi bi-phone text-success flex-shrink-0"></i>
+                    <div class="min-w-0 flex-grow-1">
                       <div class="small text-muted">Dispositivo</div>
-                      <div id="device-info">--</div>
+                      <div id="device-info" class="session-info-value">--</div>
                     </div>
                   </div>
                 </div>
                 <div class="col-sm-6">
-                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
-                    <i class="bi bi-cpu text-warning"></i>
-                    <div>
+                  <div class="d-flex align-items-center gap-3 info-container rounded session-info-item" style="background: var(--bg-secondary);">
+                    <i class="bi bi-cpu text-warning flex-shrink-0"></i>
+                    <div class="min-w-0 flex-grow-1">
                       <div class="small text-muted">Proveedor IA</div>
-                      <div id="ai-provider">--</div>
+                      <div id="ai-provider" class="session-info-value">--</div>
                     </div>
                   </div>
                 </div>
                 <div class="col-sm-6">
-                  <div class="d-flex align-items-center gap-3 p-3 rounded" style="background: var(--bg-secondary);">
-                    <i class="bi bi-clock text-info"></i>
-                    <div>
+                  <div class="d-flex align-items-center gap-3 info-container rounded session-info-item" style="background: var(--bg-secondary);">
+                    <i class="bi bi-clock text-info flex-shrink-0"></i>
+                    <div class="min-w-0 flex-grow-1">
                       <div class="small text-muted">Conectado desde</div>
-                      <div id="connected-since">--</div>
+                      <div id="connected-since" class="session-info-value">--</div>
                     </div>
                   </div>
                 </div>
